@@ -1,6 +1,19 @@
 # Capstone Track: DevSecOps and IT Project Management
  
 **Final Sprint | Due before Final Presentations**
+
+> **New to this track? Start here.** The shared [INET 4031 Capstone Guide](https://github.com/INET4031-Labs/inet4031-capstone-guide) explains how to work through any track on your own. Feeling lost in the first few days is normal for a capstone: read the guide's Start Here page, run the Environment Checkpoint below, and take the next small step.
+>
+> | I need... | Go to |
+> |---|---|
+> | A reading order and what to do in my first session | [START-HERE](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/START-HERE.md) |
+> | What to prioritize in Weeks 11 to 14 | [WEEKLY-PLAN](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/WEEKLY-PLAN.md) and the Sprint Timeline below |
+> | Plain-language explanations of this track's concepts | [CONCEPTS](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/CONCEPTS.md) |
+> | A cheat sheet for each tool in this track | [TOOL-GUIDE](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/TOOL-GUIDE.md) |
+> | Which file proves which success criterion | [EVIDENCE-CHECKLIST](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/EVIDENCE-CHECKLIST.md) |
+> | How the Week 13 rebuild works | [REBUILD](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/REBUILD.md) and the Rebuild section below |
+> | Help when something is broken | [GETTING-UNSTUCK](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/GETTING-UNSTUCK.md) |
+> | How to use AI tools well on this project | [USING-AI](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/USING-AI.md) |
  
 ## Overview
  
@@ -163,6 +176,33 @@ These are examples, not requirements. Combine them, change them, or ignore them 
  
 **Approach C: Release train with a plain-language dashboard.** Treat each tagged release as a milestone on the roadmap. Generate the changelog from commits, translate it into two sentences for Dana in the status report, and measure the team's own results from the repository history (for example, how many pull requests were blocked by a check, how long checks take, how often a revert was needed). Demonstrates how engineering evidence turns into a message a business sponsor can act on.
  
+## Track Tips and Common Trip-Ups
+
+These notes come from where students usually get stuck. They do not change the success criteria; they help you reach them. Concepts are explained in [CONCEPTS](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/CONCEPTS.md) and commands in [TOOL-GUIDE](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/TOOL-GUIDE.md). If a flag here does not work on your installed version, check the tool's `--help`.
+
+**Gates that do not lock anyone out (criteria 1 and 2)**
+
+- A required check is matched by the **name** that appears in the PR's checks list. Renaming a job, or adding a `paths:` filter so the workflow does not run on some PRs, leaves a required check that never reports, and the PR waits forever. Check `gh pr checks <number>` on a real PR before you promote anything.
+- A promotion checklist: the check runs on at least a few real PRs; you have tuned out false alarms; the name in the checks list matches what you will require; and your RUNBOOK says how to remove it if it breaks.
+- k6 exits with a non-zero code when a threshold fails, which is what makes it a gate. Define thresholds in the script, for example `thresholds: { http_req_duration: ['p(95)<500'] }`. In CI, start the Compose stack on the runner and wait for `/health` before k6 runs.
+
+**Local safety net (criterion 3)**
+
+- `.pre-commit-config.yaml` can use `repo: local` hooks with `language: system` to call ShellCheck, yamllint, and Hadolint already installed on the machine (Approach B).
+- Hooks are not stored in git. Every fresh clone needs `pre-commit install`, so put that step in your README. It is a classic rebuild gap.
+
+**Releases (criterion 4)**
+
+- Agree on a commit message style early. git-cliff groups changes well when messages follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`); otherwise the changelog is one flat list.
+- Annotated tags: `git tag -a v1.0.0 -m "..."`. A plain `git push` does not send tags; push them with `git push origin v1.0.0`.
+- Rollback is only as fast as your images are traceable. Tie each release tag to an image tag, write the rollback command in the RUNBOOK, and time it with `time`.
+
+**Stakeholder documents (criterion 5)**
+
+- RACI: Responsible does the work, Accountable owns the outcome (exactly one per row), Consulted gives input, Informed is kept updated.
+- Run a "Dana test" on your status report: have someone outside your team read it and tell you what they think it says. Rewrite any line they misread.
+- Branch protection settings live in GitHub, not in git. Your evidence file is the only record of before and after.
+
 ## Rules of the Road
  
 - **Never push to `main`.** Work on a branch (`git switch -c <branch>`), push it (`git push -u origin <branch>`), open a PR, wait for `build-and-push` to go green, then merge.
@@ -179,6 +219,17 @@ These are examples, not requirements. Combine them, change them, or ignore them 
 - **Accuracy.** Evidence files must contain real output from your runs. Do not paste invented results.
 ## How to Run This Sprint
  
+### Sprint Timeline (Weeks 11 to 14)
+
+Both sections follow the same four weeks. The planning steps below still apply; this table says where your work should be at the end of each week. The full plan is in [WEEKLY-PLAN](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/WEEKLY-PLAN.md).
+
+| Week | By the end of the week |
+|---|---|
+| 11 Kickoff | Environment Checkpoint saved, including the branch protection "before" record. Commit message convention agreed (it shapes your changelog). New checks added as **non-required**. Pre-commit config drafted. Roadmap draft. QA test cases drafted, including the bad PRs. |
+| 12 Build | New checks reporting on real PRs. Deliberately bad PRs shown red. First annotated tag `v1.0.0`. RACI and risk register. Team decision on which checks to promote to required. |
+| 13 Consolidate and rebuild | Second tag with `CHANGELOG.md`, timed rollback, status report, RUNBOOK and ARCHITECTURE, rebuild, and gap log. |
+| 14 Present | Rebuild presentation (live on the Shared VM, recorded on the Local VM) plus a gate catching a bad PR, the rollback, and the status report read aloud. |
+
 ### Shared VM (RHEL, teams)
  
 1. **Sprint planning (first meeting).** Turn the five success criteria into GitHub issues on your Project board, one issue per deliverable, each with an owner and a milestone. Put a due date on each milestone.
@@ -191,9 +242,27 @@ These are examples, not requirements. Combine them, change them, or ignore them 
 4. **Retrospective.** At the end, fill in `docs/final-sprint-retrospective.md` together.
 ### Local VM (Ubuntu, individual)
  
-- **Week 1 milestone:** pull-request gates running (non-required first), pre-commit hooks working, and your first evidence files. Write your own test cases in `docs/qa-report-final.md`.
-- **Week 2 milestone:** tagged releases, changelog, rollback rehearsal, roadmap, RACI chart, risk register, and status report. Finish the QA file. You sign it as both author and tester.
+- **Week 11 milestone:** pull-request gates running (non-required first), pre-commit hooks working, and your first evidence files. Write your own test cases in `docs/qa-report-final.md`.
+- **Week 12 milestone:** tagged releases, changelog, rollback rehearsal, roadmap, RACI chart, risk register, and status report. Finish the QA file. You sign it as both author and tester.
+- **Week 13:** consolidate your documents, then rebuild on a new VirtualBox VM and keep a gap log (see the Rebuild section).
+- **Week 14:** recorded presentation of your rebuild.
 - A short reflection replaces the retrospective (the "Individual Reflection" section of `docs/final-sprint-retrospective.md`).
+
+## Rebuild (Weeks 13 and 14)
+
+Your work has to come back up from your repository alone. Start from a clean VM, clone your repo, and follow only your README, RUNBOOK, and scripts. Every step that fails or that your README forgot is a gap: write it in `capstone/devsecops-pm/REBUILD-GAPS.md`, fix it by pull request, and update the README. The full contract, the "what lives outside git" checklist, and the gap log template are in [REBUILD](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/REBUILD.md).
+
+> **Shared VM (RHEL, teams):** In Week 13 your team takes a turn in a queue to test the rebuild on a separate VM, which is wiped between teams. In Week 14 you present live: the tools are pre-installed, and your team clones the repo and brings the app up from your README and setup instructions. There is no sudo on the rebuild or presentation VM, so every step your README asks someone to run must work without it. Your Ansible playbooks and any [PREDICT ONLY] code stay reference-only: do not run them, and make sure bringing the app up does not depend on them. Recreate your k3d cluster with the same `--subnet 100.97.<team>.0/24` flag you used before.
+
+> **Local VM (Ubuntu, individual):** In Week 13 create a new VM in VirtualBox using the same steps you used for your original VM, clone your repo, and follow your README. Keep the original VM until the rebuild works. In Week 14 you present a recording of the rebuild.
+
+**Proof of life for this track:** `pre-commit run --all-files` exits 0; both annotated tags exist; the rollback command from your RUNBOOK works.
+
+**Gaps this track usually finds:**
+- `pre-commit install` was never documented, so hooks do not run on the fresh clone.
+- Images for each release tag were built locally and are not on the new VM, so the rollback has nothing to roll back to.
+- Tags were created locally but never pushed.
+
 ## Deliverables
  
 - Implementation committed under `capstone/devsecops-pm/` in your repo (merged via PR on the RHEL section)
@@ -202,8 +271,10 @@ These are examples, not requirements. Combine them, change them, or ignore them 
 - `capstone/devsecops-pm/ARCHITECTURE.md` with an architecture diagram (Mermaid OK) showing the VM, cluster, app, GitHub (PR, workflows, runners, registry), and the new gates and release flow
 - A "How to run this" section added to the repo's top-level README so someone who clones the repo can bring the track implementation up
 - `docs/qa-report-final.md` with your own test cases and results
+- `capstone/devsecops-pm/REBUILD-GAPS.md`: the gap log from your Week 13 rebuild (template in [REBUILD](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/REBUILD.md))
 - Shared VM: `docs/final-sprint-retrospective.md`. Local VM: a short reflection (a section in the retrospective file named "Individual Reflection")
 - Final presentation/demo. Shared VM: 8-10 minutes for the team, CLI-driven. Local VM: 5 minutes, individual. Show: a commit rejected by a hook; a bad PR going red and a good one merging (`gh pr checks`); the before/after required-checks list; a tagged release and its changelog; the timed rollback; and the status report read aloud as if to Dana.
+- Week 14 rebuild presentation: live on the Shared VM (clone the repo and bring the app up from your README), recorded on the Local VM. See the Rebuild section.
 Track-specific items:
  
 - `capstone/devsecops-pm/evidence/gate-runs.txt`, `branch-protection.txt`, and `rollback-rehearsal.txt`
@@ -221,3 +292,7 @@ Track-specific items:
 ## Getting Help
  
 Clarifications about this track go to the TA or professor. There is no wiki for this track, so ask early rather than guessing, especially about anything that touches branch protection or shared VM tools.
+
+**Before you ask:** work through [GETTING-UNSTUCK](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/GETTING-UNSTUCK.md) for about 30 minutes, then ask with the command, its full output, what you expected, and what you tried.
+
+**Using AI:** AI assistants are welcome as a tool for learning how these tools work and how enterprises use them. Do not rely on them to produce your work: understand every line you commit, verify AI answers against the tool's documentation, never paste AI output into evidence files, and never paste secrets into an AI tool. See [USING-AI](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/USING-AI.md).

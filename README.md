@@ -7,6 +7,8 @@
 > | I need... | Go to |
 > |---|---|
 > | A reading order and what to do in my first session | [START-HERE](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/START-HERE.md) |
+> | What I may change in the app, and how to propose my own criterion | [MAKE-IT-YOURS](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/MAKE-IT-YOURS.md) |
+> | Local VM: how my k3s and OpenTofu setup differs from this README | [LOCAL-VM](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/LOCAL-VM.md) |
 > | What to prioritize in Weeks 11 to 14 | [WEEKLY-PLAN](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/WEEKLY-PLAN.md) and the Sprint Timeline below |
 > | Plain-language explanations of this track's concepts | [CONCEPTS](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/CONCEPTS.md) |
 > | A cheat sheet for each tool in this track | [TOOL-GUIDE](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/TOOL-GUIDE.md) |
@@ -14,6 +16,8 @@
 > | How the Week 13 rebuild works | [REBUILD](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/REBUILD.md) and the Rebuild section below |
 > | Help when something is broken | [GETTING-UNSTUCK](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/GETTING-UNSTUCK.md) |
 > | How to use AI tools well on this project | [USING-AI](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/USING-AI.md) |
+>
+> **Local VM students:** much of this README describes the Shared VM setup (k3d, team numbers, `main`, `kubectl apply`). Your setup is a single-node k3s cluster that changes through OpenTofu and your deploy script. Look for the **Local VM** notes in each section, and keep [LOCAL-VM](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/LOCAL-VM.md) open while you work.
  
 ## Overview
  
@@ -45,6 +49,16 @@ This track has two halves that depend on each other. The first half is **DevSecO
 3. **Local safety net.** Pre-commit hooks are installed, and a commit containing a deliberate shell or YAML error is rejected on the developer's machine. `pre-commit run --all-files` exits 0 on a clean branch. Evidence: saved terminal output of both.
 4. **Repeatable, reversible releases.** At least two annotated semantic-version tags (for example `v1.0.0` and `v1.1.0`), each with a `CHANGELOG.md` entry that lists the merged pull requests included. A rollback from the newer release to the older one is rehearsed on your cluster in under 5 minutes, timed, and recorded. Evidence: `capstone/devsecops-pm/evidence/rollback-rehearsal.txt`.
 5. **Stakeholder visibility.** A roadmap with at least three dated milestones that finish before the quarterly business review; a RACI chart covering at least 8 activities with exactly one Accountable person per row; a risk register with at least 8 risks, each scored (likelihood x impact), owned, and with a mitigation; and a status report of one page or less (400 words maximum) that uses no unexplained technical terms. Evidence: the four files under `capstone/devsecops-pm/` named in the Deliverables.
+## Local VM Success Criteria
+
+Your repository already has more gates than the Shared VM starting point: since Week 8, the `protect-master` ruleset requires the three Deploy gate jobs (`tofu fmt and validate`, `render the Prometheus chart`, `security scan`) on `master`, and Week 10 added `load-test.yml`, which runs k6 on pull requests that touch the app, without being required. The five criteria apply with these readings:
+
+- **"`main`"** means `master`, **"branch protection"** means the `protect-master` ruleset, and **"`build-and-push`"** means the three required Deploy gate jobs. All three must still be required at the end.
+- **Criterion 1:** you need four checks beyond those three jobs. Checkov does not count as your security scan, because it is already required; add a different one (for example Trivy on the `web` image or gitleaks on the history). Week 10's `load-test.yml` (job `performance smoke test`) counts as your k6 check only if you change its test or threshold to cover something new and write down why. It has a `paths` filter, so it cannot become a required check until you decide what to do about that filter.
+- **Criterion 2:** your before and after record is the ruleset itself: `gh api repos/{owner}/{repo}/rulesets/<id>` saved to `evidence/branch-protection.txt`. To promote a check, edit `week-8/ruleset.json` and send it with `gh api --method PUT repos/{owner}/{repo}/rulesets/<id> --input week-8/ruleset.json`, so the file in git always matches GitHub.
+- **Criterion 4:** a release means a git tag **and** the `web` image tag that `week-5/web.tf` points at. The rollback goes through a pull request (the ruleset allows nothing else), so time it from merging the rollback pull request to the old image serving `/health`. You may run `./week-7/deploy.sh` by hand after the gate passes instead of waiting for cron. Your Week 7 revert is a model for the rollback.
+- **Criterion 5:** you are one person, so your RACI uses the Harborlight cast plus yourself, with exactly one Accountable per row.
+
 ## Learning Objectives
  
 - Design CI quality gates and explain which findings should block a merge and which should only warn
@@ -56,6 +70,8 @@ This track has two halves that depend on each other. The first half is **DevSecO
 ## Prerequisites
  
 You need the earlier weeks working: the statustracker app (Flask, PostgreSQL, Nginx) under Docker Compose, your k3d cluster running the Flask Deployment, Prometheus in the `monitoring` namespace, GitHub Actions CI with `build-and-push`, branch protection on `main`, and your k6 smoke test. Your repo needs at least a few merged pull requests so there is history to build a changelog from.
+
+> **Local VM (Ubuntu, individual):** your prerequisites are Weeks 4 to 10 of your section: `web` and `db` on k3s managed by OpenTofu in `week-5/`, Prometheus (Week 6), the Deploy gate and `deploy.sh` (Week 7), the `protect-master` ruleset (Week 8), and k6 with `load-test.yml` (Week 10). You already have plenty of merged pull requests to build a changelog from.
  
 ### Environment Checkpoint
  
@@ -86,10 +102,27 @@ gh api repos/<owner>/<repo>/branches/main/protection --jq '.required_status_chec
 Reading branch protection settings normally needs admin rights on the repository. If `gh api` answers `404` or `403`, you are not an admin: ask a teammate who is (or the TA) to run the command and save the output to a file in `capstone/devsecops-pm/evidence/`, and use that file as your evidence.
  
 The last command should print a list that includes `build-and-push`. Save that output; it is your "before" record for success criterion 2. If `gh auth status` fails, tell the TA before continuing.
+
+**Local VM:** your Compose stack has been stopped since Week 4, and your rules are a ruleset, so use this block instead. You own the repository, so you can read the ruleset yourself.
+
+```bash
+curl -s http://$(kubectl get service web -o jsonpath='{.spec.clusterIP}'):8080/health
+kubectl get nodes
+kubectl get pods -n default
+tail -5 ~/deploy.log
+# Prometheus port-forward in its own terminal: kubectl port-forward --namespace monitoring service/prometheus-server 9090:80
+./week-6/pq.sh 'up'
+git status
+gh auth status
+gh api repos/{owner}/{repo}/rulesets --jq '.[] | "\(.id) \(.name) \(.enforcement)"'
+gh api repos/{owner}/{repo}/rules/branches/master --jq '.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context'
+```
+
+The last command should print the three Deploy gate job names. Save it, plus `gh api repos/{owner}/{repo}/rulesets/<id>`, as your "before" record.
  
 > **Shared VM (RHEL, teams):** Use the port patterns above with your team number.
  
-> **Local VM (Ubuntu, individual):** Use `http://localhost:8080` (Compose), `http://localhost:8081` (Kubernetes), and `http://localhost:9090` (Prometheus). VS Code forwards the ports to your browser.
+> **Local VM (Ubuntu, individual):** The app is on port 8080 (the `web` Service address above, or `kubectl port-forward --address 0.0.0.0 service/web 8080:8080` and http://localhost:8080 in your browser) and Prometheus on 9090. Compose is not running on your VM, but a k6 check in CI can start the app on GitHub's runner, the way your Week 10 `load-test.yml` does.
  
 ## Team Port Assignments
  
@@ -102,7 +135,7 @@ Stakeholder artifacts are Markdown files in the repo plus the GitHub Project boa
  
 > **Shared VM (RHEL, teams):** Use only your own team's ports. Never send traffic to another team's ports.
  
-> **Local VM (Ubuntu, individual):** No team number. Use 8080, 8081, and 9090.
+> **Local VM (Ubuntu, individual):** No team number. Use 8080 (app) and 9090 (Prometheus).
  
 **Memory budget:** keep anything you add to the cluster under **256Mi total**. This track does not require any new long-running pods, so you may well use zero. Scans, linters, and k6 are short-lived commands on the host or run on GitHub's runners. Check with `free -h` and `kubectl top pods -A`. If `kubectl top` errors, tell the TA; in the meantime, read requests and limits with `kubectl describe pod`. Every pod you deploy must have memory requests AND limits.
  
@@ -201,7 +234,13 @@ These notes come from where students usually get stuck. They do not change the s
 
 - RACI: Responsible does the work, Accountable owns the outcome (exactly one per row), Consulted gives input, Informed is kept updated.
 - Run a "Dana test" on your status report: have someone outside your team read it and tell you what they think it says. Rewrite any line they misread.
-- Branch protection settings live in GitHub, not in git. Your evidence file is the only record of before and after.
+- Branch protection settings live in GitHub, not in git. Your evidence file is the only record of before and after. (Local VM: your `week-8/ruleset.json` is in git too, so keep it in step with GitHub.)
+
+**Local VM notes**
+
+- **A path filter on a required check locks you out.** Week 8 removed the `paths` filter from the Deploy gate for this reason, and `opentofu-checks.yml` still has one, which is why it is not required. Any check you promote must run on every pull request.
+- **A release that changes the image** needs the new tag imported into k3s before its pull request merges, and the old tag kept, or the rollback has nothing to go back to.
+- **Your deploy script stops at deletions.** If a release or rollback renames or removes an OpenTofu resource, `deploy.sh` logs `BLOCKED` and waits for you. Rehearse the rollback with a release that only changes the image tag first.
 
 ## Rules of the Road
  
@@ -209,7 +248,7 @@ These notes come from where students usually get stuck. They do not change the s
 - **Never make a new check required on day one.** A required check that does not run (a renamed job, a path filter, a workflow that fails to start) leaves the PR waiting forever and nobody can merge. Add new checks as non-required, prove they run, then promote. Always keep a written plan for how to remove a required check if it breaks.
 - **Keep `build-and-push` required.** Do not remove it or weaken branch protection to make your own work easier. Do not use an admin bypass.
 - **Campus firewall.** Container addresses (172.x) cannot reach the internet. Build with `docker build --network host -t <image>:<tag> <dir>`. Do not use `build: network: host` in Compose. Never disable firewalld or edit `/etc/docker/daemon.json`. CI runs on GitHub's runners and does have internet; your VM does not give containers the same access.
-- **Image tags.** The Docker daemon is shared. Tag every image `<name>:team<N>` (Local VM: `:local` is fine) and import it with `k3d image import <image>:team<N> -c <your cluster name>`.
+- **Image tags.** The Docker daemon is shared. Tag every image `<name>:team<N>` and import it with `k3d image import <image>:team<N> -c <your cluster name>`. (Local VM: tag by release, for example `week-4-web:v1.1.0`, and import with `docker save` and `sudo k3s ctr images import`.)
 - **File permissions.** `umask 077` makes your edited files mode 600. If a Dockerfile switches to a non-root user, use `COPY --chmod=644` (or `chmod 644` before building) or the container will not be able to read your files.
 - **No sudo.** Run `k3d`, `kubectl`, `helm`, and `k6` without `sudo`. Students never use `sudo` on the RHEL VM.
 - **Port-forwards.** Run `kubectl port-forward` in the foreground in its own terminal. Never background it with `&`. If one gets stuck: `pkill -u $USER -f "kubectl port-forward"`.
@@ -217,6 +256,20 @@ These notes come from where students usually get stuck. They do not change the s
 - **Network policy.** If you deploy any new pod that receives traffic, the `default-deny-ingress` policy blocks it until you write an allow policy for it. Every pod needs memory requests and limits.
 - **Secrets.** Never put tokens in a workflow file or in the evidence files. Use repository secrets and `GITHUB_TOKEN`.
 - **Accuracy.** Evidence files must contain real output from your runs. Do not paste invented results.
+
+### Local VM (Ubuntu, individual) rules
+
+The rules above that mention other teams, team numbers, k3d, `--network host`, firewalld, `/etc/docker/daemon.json`, `umask 077`, or [PREDICT ONLY] describe the Shared VM. On your own VM these apply instead:
+
+- **Change the cluster through OpenTofu.** Anything that should last goes in `week-5/*.tf`, through a pull request, the Deploy gate, and `week-7/deploy.sh`. Throwaway test pods may use `kubectl apply`, and you delete them afterward. A change made with `kubectl` to an object OpenTofu manages is undone by the next deploy.
+- **The gate checks your additions.** Every container you add in `week-5/` needs CPU and memory requests and limits and must not allow privilege escalation, or the `security scan` job fails and the ruleset blocks the merge.
+- **New image, new tag.** Build a new tag (for example `:v1`, `:v2`), import it with `docker save` and `sudo k3s ctr images import` **before** the pull request that uses it, and never overwrite the tag that is running.
+- **`master` and `protect-master` stay.** Work on branches and merge through pull requests. Do not delete the ruleset, remove its checks, or add a bypass.
+- **No default-deny.** Only the `db` pods are protected (by `db-clients`). A pod you add accepts traffic from anywhere until a NetworkPolicy selects it.
+- **sudo** is for package installs, `sudo install` of single binaries, and `sudo k3s ctr`. Run `kubectl`, `helm`, `tofu`, and `k6` as your normal user.
+- **Keep the three Deploy gate jobs required** on `protect-master`. Promote new checks by editing `week-8/ruleset.json` and sending it with `gh api --method PUT`, never by deleting and recreating the ruleset without its checks.
+- **Memory budget still applies:** anything you add to the cluster stays under 256Mi total.
+
 ## How to Run This Sprint
  
 ### Sprint Timeline (Weeks 11 to 14)
@@ -242,9 +295,11 @@ Both sections follow the same four weeks. The planning steps below still apply; 
 4. **Retrospective.** At the end, fill in `docs/final-sprint-retrospective.md` together.
 ### Local VM (Ubuntu, individual)
  
-- **Week 11 milestone:** pull-request gates running (non-required first), pre-commit hooks working, and your first evidence files. Write your own test cases in `docs/qa-report-final.md`.
-- **Week 12 milestone:** tagged releases, changelog, rollback rehearsal, roadmap, RACI chart, risk register, and status report. Finish the QA file. You sign it as both author and tester.
-- **Week 13:** consolidate your documents, then rebuild on a new VirtualBox VM and keep a gap log (see the Rebuild section).
+You follow the same Sprint Timeline as the Shared VM teams, alone.
+
+- **Week 11 milestone:** Environment Checkpoint saved, including the ruleset "before" record. Commit message convention chosen. New checks added as **non-required**. Pre-commit config drafted. Roadmap draft. Your test cases drafted in `docs/qa-report-final.md`, including the bad pull requests.
+- **Week 12 milestone:** new checks reporting on real pull requests, deliberately bad pull requests shown red, first annotated tag `v1.0.0` with its image tag, RACI chart and risk register, and your decision on which checks to promote.
+- **Week 13:** second tag with `CHANGELOG.md`, timed rollback, status report, RUNBOOK and ARCHITECTURE, then rebuild on a new VirtualBox VM and keep a gap log (see the Rebuild section). Finish the QA file; you sign it as both author and tester.
 - **Week 14:** recorded presentation of your rebuild.
 - A short reflection replaces the retrospective (the "Individual Reflection" section of `docs/final-sprint-retrospective.md`).
 
@@ -254,7 +309,7 @@ Your work has to come back up from your repository alone. Start from a clean VM,
 
 > **Shared VM (RHEL, teams):** In Week 13 your team takes a turn in a queue to test the rebuild on a separate VM, which is wiped between teams. In Week 14 you present live: the tools are pre-installed, and your team clones the repo and brings the app up from your README and setup instructions. There is no sudo on the rebuild or presentation VM, so every step your README asks someone to run must work without it. Your Ansible playbooks and any [PREDICT ONLY] code stay reference-only: do not run them, and make sure bringing the app up does not depend on them. Recreate your k3d cluster with the same `--subnet 100.97.<team>.0/24` flag you used before.
 
-> **Local VM (Ubuntu, individual):** In Week 13 create a new VM in VirtualBox using the same steps you used for your original VM, clone your repo, and follow your README. Keep the original VM until the rebuild works. In Week 14 you present a recording of the rebuild.
+> **Local VM (Ubuntu, individual):** In Week 13 create a new VM in VirtualBox using the same steps you used for your original VM, clone your repo, and follow your README. Keep the original VM until the rebuild works. In Week 14 you present a recording of the rebuild. Start from the "Rebuild on a fresh VM" sections you wrote in your Week 7, 8, and 9 READMEs (k3s, OpenTofu variables, image import, deploy and backup cron lines), then add everything this track added. The full Local VM order is in [REBUILD](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/REBUILD.md). You have sudo on your own VM; every step that needs it must be in your README.
 
 **Proof of life for this track:** `pre-commit run --all-files` exits 0; both annotated tags exist; the rollback command from your RUNBOOK works.
 
@@ -262,6 +317,7 @@ Your work has to come back up from your repository alone. Start from a clean VM,
 - `pre-commit install` was never documented, so hooks do not run on the fresh clone.
 - Images for each release tag were built locally and are not on the new VM, so the rollback has nothing to roll back to.
 - Tags were created locally but never pushed.
+- Local VM: release image tags existed only in the old VM's k3s, so the rollback on the new VM needs both image tags built and imported first.
 
 ## Deliverables
  

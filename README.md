@@ -215,6 +215,9 @@ These notes come from where students usually get stuck. They do not change the s
 
 **Gates that do not lock anyone out (criteria 1 and 2)**
 
+- **Your five real pull requests can be your own features.** Criterion 1 needs real pull requests for the gates to run on, and [MAKE-IT-YOURS](https://github.com/INET4031-Labs/inet4031-capstone-guide/blob/main/MAKE-IT-YOURS.md) lets you change the app. A gate that catches a problem in a real feature is more convincing than one that only ever sees test commits, and the same features become the content of your `v1.0.0` and `v1.1.0` releases.
+- **One job per gate.** Give each check its own job with a clear `name:`. The job name is what appears in the checks list, what the required-checks list matches, and what your evidence shows. Four checks hidden in one job cannot be promoted, tuned, or removed separately.
+
 - A required check is matched by the **name** that appears in the PR's checks list. Renaming a job, or adding a `paths:` filter so the workflow does not run on some PRs, leaves a required check that never reports, and the PR waits forever. Check `gh pr checks <number>` on a real PR before you promote anything.
 - A promotion checklist: the check runs on at least a few real PRs; you have tuned out false alarms; the name in the checks list matches what you will require; and your RUNBOOK says how to remove it if it breaks.
 - k6 exits with a non-zero code when a threshold fails, which is what makes it a gate. Define thresholds in the script, for example `thresholds: { http_req_duration: ['p(95)<500'] }`. In CI, start the Compose stack on the runner and wait for `/health` before k6 runs.
@@ -233,6 +236,9 @@ These notes come from where students usually get stuck. They do not change the s
 **Stakeholder documents (criterion 5)**
 
 - RACI: Responsible does the work, Accountable owns the outcome (exactly one per row), Consulted gives input, Informed is kept updated.
+- **Roadmap shape.** Each milestone has a name Dana would understand, a target date before the quarterly business review, what she gets when it is done, an owner, and a status. Add a short "not in scope" list; it prevents more arguments than the milestones do.
+- **RACI shape.** Rows are activities a sponsor cares about (for example "approve a new required check," "cut a release," "roll back a release," "send the status report"). Columns are people from the Harborlight cast and your team. Exactly one A per row.
+- **Status report shape** (section names only): overall status in one line (on track, at risk, or off track, and why); done since the last report; next; top risks in plain words, taken from your register; decisions or help needed from Dana; the next milestone date. 400 words maximum, no unexplained technical terms.
 - Run a "Dana test" on your status report: have someone outside your team read it and tell you what they think it says. Rewrite any line they misread.
 - Branch protection settings live in GitHub, not in git. Your evidence file is the only record of before and after. (Local VM: your `week-8/ruleset.json` is in git too, so keep it in step with GitHub.)
 
